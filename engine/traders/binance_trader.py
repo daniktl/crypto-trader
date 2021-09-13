@@ -20,16 +20,14 @@ EXCHANGE_INFO_URL = "/api/v3/exchangeInfo"
 
 class BinanceTrader(BaseTrader):
 
-    secret_key: str
-
     def __init__(self, **kwargs):
         status_codes_limit = [WEB_APPLICATION_FIREWALL_LIMIT, REQUEST_RATE_LIMIT]
         status_codes_blocked = [IP_BANNED]
-        self.secret_key = kwargs.pop("secret_key", None) or os.getenv(BINANCE_SECRET_KEY_ENV_NAME)
         super().__init__(
             name="BinanceTrader",
             api_base_url=BINANCE_API_BASE_URL,
             api_key=kwargs.pop("api_key", None) or os.getenv(BINANCE_API_KEY_ENV_NAME),
+            secret_key=kwargs.pop("secret_key", None) or os.getenv(BINANCE_SECRET_KEY_ENV_NAME),
             blocking_status_codes=status_codes_blocked,
             limit_status_codes=status_codes_limit,
         )
@@ -43,7 +41,7 @@ class BinanceTrader(BaseTrader):
         :return: request body with a signature
         """
         timestamp = datetime.datetime.now().timestamp()
-        request_body["timestamp"] = timestamp
+        request_body.setdefault("timestamp", timestamp)
         request_body_str: str = "&".join(f"{k}={v}" for k, v in request_body.items())
         signature = hmac.new(self.secret_key.encode(), request_body_str.encode(), hashlib.sha256).hexdigest()
         request_body["signature"] = signature
