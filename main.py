@@ -8,5 +8,5 @@ from engine.traders.huobi_trader import HuobiTrader
 if __name__ == '__main__':
     load_dotenv()
     trader = HuobiTrader()
-    data = trader.get_account_balance()
+    data = trader.get_offers()
     print(data)

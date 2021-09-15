@@ -16,6 +16,7 @@ IP_BANNED = 418
 
 # endpoints
 EXCHANGE_INFO_URL = "/api/v3/exchangeInfo"
+P2P_ADVERTISERS_API_URL = ""
 
 
 class BinanceTrader(BaseTrader):

@@ -3,7 +3,7 @@ import datetime
 import hashlib
 import hmac
 import os
-from typing import Dict
+from typing import Dict, Optional, Tuple
 from urllib.parse import quote_plus
 
 from engine.traders.base_trader import BaseTrader
@@ -19,8 +19,12 @@ HUOBI_C2C_ACCOUNT_ID_ENV_NAME = "HUOBI_C2C_ACCOUNT_ID"
 HUOBI_SIGNATURE_VERSION = 2
 HUOBI_SIGNATURE_METHOD = "HmacSHA256"
 
+OFFER_STATUSES = ("submitted", "filled", "partial-filled", "canceled", "partial-canceled")
+
 # endpoints
-c2c_account_balance = "/v2/c2c/account"
+ACCOUNT_BALANCE_URL = "/v2/c2c/account"
+OFFERS_URL = "/v2/c2c/offers"
+OFFER_URL = "/v2/c2c/offer"
 
 
 class HuobiTrader(BaseTrader):
@@ -66,6 +70,72 @@ class HuobiTrader(BaseTrader):
         request_body = {
             "accountId": account_id or os.getenv(HUOBI_C2C_ACCOUNT_ID_ENV_NAME)
         }
-        request_body = self.sign_request_body(method="GET", endpoint=c2c_account_balance, request_body=request_body)
-        balance = self.get_json(c2c_account_balance, params=request_body)
+        balance = self.get_json(ACCOUNT_BALANCE_URL, params=request_body)
         return balance
+
+    def get_json(self, endpoint: str, params: dict = None) -> Dict:
+        params_signed = self.sign_request_body("GET", endpoint, params)
+        return super().get_json(endpoint, params_signed)
+
+    def get_offers(
+            self,
+            account_id: str = None,
+            currency: str = None,
+            side: str = None,
+            statuses: Tuple[str] = None,
+            start_time: int = None,
+            end_time: int = None,
+            limit: int = None,
+            from_offer_id: int = None
+    ) -> Dict:
+        """Method to query c2c offers.
+        Source: https://huobiapi.github.io/docs/spot/v1/en/#query-lending-borrow-offers
+
+        :param account_id:
+        :param currency:
+        :param side:
+        :param statuses:
+        :param start_time:
+        :param end_time:
+        :param limit:
+        :param from_offer_id:
+        :return: Response from the Huobi
+        """
+        if not statuses:
+            statuses = OFFER_STATUSES
+        request_body = {
+            "offerStatus": ",".join(statuses)
+        }
+        offers = self.get_json(OFFERS_URL, request_body)
+        return offers
+
+    def post_offer(
+            self,
+            cc: str,
+            side: str,
+            amount: str,
+            interest_rate: str,
+            loan_term: int,
+            account_id: str = None,
+            time_in_force: str = None
+    ) -> Dict:
+        """Method to place new offer on th Huobi.
+
+        :param cc: cryptocurrency of new offer
+        :param side: lend/borrow
+        :param amount: offer value
+        :param interest_rate: daily interest rate
+        :param loan_term: loan term
+        :param account_id:
+        :param time_in_force:
+        :return: Response from the Huobi
+        """
+        new_offer_payload = {
+            "currency": cc,
+            "side": side,
+            "amount": amount,
+            "interestRate": interest_rate,
+            "loadTerm": loan_term
+        }
+        offer = self.get_json(OFFER_URL, new_offer_payload)
+        return offer
